@@ -1,0 +1,8 @@
+[project]
+name = "supplychain-copilot"
+version = "0.1.0"
+description = "Agentic AI assistant for supply chain operations — LangGraph, RAG, ML forecasting, Streamlit"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,11 @@
+langchain>=1.0
+langgraph>=1.0
+langchain-anthropic
+langchain-openai
+langchain-ollama
+pandas
+scikit-learn
+plotly
+streamlit
+python-dotenv
+pytest
