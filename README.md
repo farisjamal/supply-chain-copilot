@@ -1,87 +1,186 @@
-# 📦 Supply Chain Copilot
+# Supply Chain Copilot
 
-An **agentic AI assistant for supply chain operations**: a LangGraph ReAct agent that answers planner questions by calling Python tools — live inventory checks, ML demand forecasts, shipment-anomaly detection, and RAG retrieval over supplier contracts — with a Plotly/Streamlit dashboard on top.
+[![Tests](https://github.com/farisjamal/supply-chain-copilot/actions/workflows/tests.yml/badge.svg)](https://github.com/farisjamal/supply-chain-copilot/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![LangGraph](https://img.shields.io/badge/Agent-LangGraph-1C3C3C)
 
-> Ask it things like *"Which SKUs risk stockout, and what do our contracts say about expediting?"* and it plans, chains tools, and answers with cited sources and quantified uncertainty.
+Supply Chain Copilot is a portfolio project that demonstrates how an AI agent can support supply-chain operations planning. A planner asks a question in plain English, and the agent calls Python tools to check inventory, forecast demand, analyse shipments, or search supplier documents before recommending an action.
+
+The included company data, supplier contracts, and policies are synthetic. The project can run fully locally with Ollama and does not require an API key.
+
+## What the project demonstrates
+
+- A LangGraph agent with tool calling, planning, and per-thread conversation memory
+- Five operational tools for inventory, demand, shipments, low-stock reporting, and document search
+- A local RAG pipeline over supplier contracts, logistics procedures, and inventory policies
+- Random Forest demand forecasting with a time-based holdout and MAE reporting
+- Isolation Forest detection of unusual shipment delays
+- A Streamlit and Plotly dashboard for KPIs, charts, forecasts, and agent chat
+- Automated tests that do not require an LLM or API key
+
+## Example use case
+
+A planner asks:
+
+> Do we need to worry about keyboard stock?
+
+The agent can:
+
+1. Check how many keyboards are currently in stock.
+2. Estimate how many days that stock will last.
+3. Forecast demand during the supplier's lead time.
+4. Check supplier performance or contract terms if needed.
+5. Return a recommendation based on the tool results.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[User<br/>CLI / Streamlit chat] --> A[LangGraph ReAct Agent<br/>planning + reasoning loop]
-    A -- memory --> M[(Checkpointer<br/>per-thread state)]
-    A -- tool calls --> T1[check_inventory<br/>pandas over inventory.csv]
-    A -- tool calls --> T2[forecast_demand<br/>RandomForest, lag features]
-    A -- tool calls --> T3[shipment_status<br/>IsolationForest anomalies]
-    A -- tool calls --> T4[search_supplier_docs<br/>RAG: chunk → TF-IDF → top-k]
-    T4 --> D[(Knowledge base<br/>contracts, SOPs, policies)]
-    subgraph Dashboard
-      V[Streamlit + Plotly<br/>KPIs, demand, forecasts, delays]
-    end
+    U[Planner] --> UI[CLI or Streamlit]
+    UI --> A[LangGraph agent]
+    A <--> M[(Conversation memory)]
+    A --> I[Inventory tool]
+    A --> F[Demand forecast tool]
+    A --> S[Shipment analysis tool]
+    A --> R[Document search tool]
+    I --> CSV[(Synthetic CSV data)]
+    F --> CSV
+    S --> CSV
+    R --> DOCS[(Contracts and policies)]
+    A --> UI
 ```
 
-## How this maps to an Agentic AI role
+For a more detailed explanation, read [Architecture](docs/ARCHITECTURE.md).
 
-| Skill | Where it lives in this repo |
+## Project structure
+
+```text
+supply-chain-copilot/
+|-- .github/workflows/tests.yml       # GitHub Actions test workflow
+|-- data/docs/                        # Synthetic contracts, policies, and SOPs
+|-- docs/
+|   |-- ARCHITECTURE.md               # Technical design and data flow
+|   `-- DEMO_GUIDE.md                 # Interview demonstration script
+|-- supplychain_copilot/
+|   |-- agent/
+|   |   |-- graph.py                  # Agent assembly and conversation memory
+|   |   |-- prompts.py                # Agent instructions and grounding rules
+|   |   `-- tools.py                  # Five tools available to the agent
+|   |-- dashboard/app.py              # Streamlit user interface
+|   |-- ml/                           # Forecasting and anomaly detection
+|   |-- rag/pipeline.py               # Local document retrieval pipeline
+|   |-- config.py                     # LLM provider configuration
+|   |-- data_gen.py                   # Reproducible synthetic data generator
+|   |-- data_store.py                 # Cached data-loading functions
+|   `-- cli.py                        # Terminal chat interface
+|-- tests/                            # Unit and graph-compilation tests
+|-- .env.example                      # Safe configuration template
+|-- requirements.txt                  # Python dependencies
+|-- START_CHAT.bat                    # Windows terminal-chat launcher
+`-- START_DASHBOARD.bat               # Windows dashboard launcher
+```
+
+## Getting started
+
+### Requirements
+
+- Python 3.11 or newer
+- [Ollama](https://ollama.com/) with the `llama3.2` model, or an Anthropic/OpenAI API key
+
+### First-time setup on Windows
+
+```powershell
+git clone https://github.com/farisjamal/supply-chain-copilot.git
+cd supply-chain-copilot
+
+py -3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+
+ollama pull llama3.2
+.venv\Scripts\python.exe -m supplychain_copilot.data_gen
+```
+
+Keep Ollama running when using the agent. The default `.env.example` is already configured for the local `llama3.2` model.
+
+### Launch the dashboard
+
+Double-click `START_DASHBOARD.bat`, or run:
+
+```powershell
+.venv\Scripts\python.exe -m streamlit run supplychain_copilot/dashboard/app.py
+```
+
+### Use terminal chat
+
+Double-click `START_CHAT.bat`, or run:
+
+```powershell
+.venv\Scripts\python.exe -m supplychain_copilot.cli
+```
+
+You can also send a single question:
+
+```powershell
+.venv\Scripts\python.exe -m supplychain_copilot.cli "Which SKUs need reordering?"
+```
+
+## Suggested demo questions
+
+- `Which SKUs need reordering right now?`
+- `Do we need to worry about monitor stock? Include the demand forecast.`
+- `How reliable is Shenzhen Electro?`
+- `What are the payment terms in the Acme contract?`
+- Follow with `What products does that contract cover?` to demonstrate memory.
+
+See [Demo Guide](docs/DEMO_GUIDE.md) for a short interview walkthrough.
+
+## Tests
+
+The test suite checks forecasting, retrieval, tools, and agent-graph compilation without calling an external language model.
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q
+```
+
+GitHub Actions runs the same tests on every push and pull request.
+
+## How the role requirements map to the code
+
+| Capability | Implementation |
 |---|---|
-| **Agentic AI frameworks (LangGraph/LangChain)** | [`agent/graph.py`](supplychain_copilot/agent/graph.py) — ReAct agent graph, model↔tool loop, checkpointer |
-| **Tool calling** | [`agent/tools.py`](supplychain_copilot/agent/tools.py) — 5 typed tools with LLM-facing docstrings |
-| **Memory** | LangGraph checkpointer per `thread_id` — multi-turn follow-ups keep context ([`agent/graph.py`](supplychain_copilot/agent/graph.py)) |
-| **Planning & reasoning** | ReAct loop + explicit planning policy in the system prompt |
-| **Prompt engineering** | [`agent/prompts.py`](supplychain_copilot/agent/prompts.py) — role, tool policy, grounding rules, output contract, few-shot example |
-| **LLM familiarity** | Provider-agnostic: Anthropic / OpenAI / local Ollama ([`config.py`](supplychain_copilot/config.py)) |
-| **RAG pipeline** | [`rag/pipeline.py`](supplychain_copilot/rag/pipeline.py) — ingest → chunk → vectorize → retrieve → grounded, cited answers |
-| **ML concepts** | [`ml/forecasting.py`](supplychain_copilot/ml/forecasting.py) — feature engineering, train/holdout split, MAE; [`ml/anomaly.py`](supplychain_copilot/ml/anomaly.py) — IsolationForest |
-| **Data visualization** | [`dashboard/app.py`](supplychain_copilot/dashboard/app.py) — Plotly charts, KPIs, forecast overlay |
-| **Supply chain / operations** | Reorder points, days of cover, lead times, OTD rates, incoterms, MOQs — in the data model, tools, and knowledge base |
-| **Python** | Everything; tested with `pytest` (`tests/`) |
+| Agentic AI | LangGraph agent loop in [`agent/graph.py`](supplychain_copilot/agent/graph.py) |
+| Tool calling | Five typed tools in [`agent/tools.py`](supplychain_copilot/agent/tools.py) |
+| Memory | LangGraph checkpointer, separated by conversation `thread_id` |
+| Prompt engineering | Role, tool policy, grounding rules, and example in [`agent/prompts.py`](supplychain_copilot/agent/prompts.py) |
+| RAG | Chunking, TF-IDF retrieval, and source return in [`rag/pipeline.py`](supplychain_copilot/rag/pipeline.py) |
+| Machine learning | Random Forest forecasting and Isolation Forest anomaly detection in [`ml/`](supplychain_copilot/ml) |
+| Data visualisation | Streamlit and Plotly dashboard in [`dashboard/app.py`](supplychain_copilot/dashboard/app.py) |
+| Supply-chain concepts | Reorder points, days of cover, lead times, on-time delivery, MOQs, and incoterms |
 
-## Quickstart
+## Design choices
 
-```bash
-git clone <this repo> && cd supply-chain-copilot
-python -m venv .venv && .venv\Scripts\activate     # Windows
-pip install -r requirements.txt
+- **LangGraph:** the use case needs one assistant that can repeatedly choose and call tools. The graph can later grow into specialist agents.
+- **TF-IDF retrieval:** the knowledge base is small and contains exact domain terms, so local lexical retrieval is fast, explainable, and sufficient for this demonstration.
+- **Random Forest forecasting:** lag and calendar features capture nonlinear demand patterns without requiring a large time-series stack.
+- **Python-calculated facts:** the model chooses tools and explains results, while Python performs numerical calculations to reduce invented figures.
+- **Local-first setup:** Ollama keeps the demonstration free and avoids sending synthetic operational data to a cloud model.
 
-# generate the synthetic dataset (2 years of orders, inventory, shipments)
-python -m supplychain_copilot.data_gen
+## Current limitations
 
-# configure an LLM (copy .env.example -> .env, set ONE provider)
-#   no API key? use Ollama: install from ollama.com, `ollama pull llama3.2`, LLM_PROVIDER=ollama
+- All business data and documents are synthetic.
+- Conversation memory resets when the application restarts.
+- TF-IDF is suitable for this small document set; a larger deployment would use embeddings and a vector database.
+- The forecasting model is educational and would require deeper validation before supporting real purchasing decisions.
 
-# run tests (no LLM needed — tools, ML, RAG are pure Python)
-pytest
+## Security and privacy
 
-# chat in the terminal
-python -m supplychain_copilot.cli "which SKUs need reordering?"
+Local secrets and generated files are excluded from version control. Never commit `.env`, API keys, private-key files, or `.streamlit/secrets.toml`. Use `.env.example` only as a safe template.
 
-# or launch the dashboard
-streamlit run supplychain_copilot/dashboard/app.py
-```
+## Future improvements
 
-## Example agent session
-
-```
-you> Do we need to worry about keyboard stock?
-
-copilot> Yes — SKU-1003 is below its reorder point with ~9 days of cover,
-while Shenzhen Electro's lead time is 18 days (on-time rate ~82%).
-Forecast demand over the lead time is ~700 units (holdout MAE 4.1/day).
-Recommend raising a PO today; note the contract has no late penalty for
-the first 5 days, so build in buffer (source: supplier_contract_shenzhen.md).
-```
-
-## Design decisions (interview talking points)
-
-- **Why LangGraph over CrewAI/AutoGen:** the task is one assistant with tools, not a multi-agent crew; LangGraph's ReAct prebuilt gives an inspectable state machine with checkpointing for free, and the graph can grow into multi-agent later.
-- **Why TF-IDF for retrieval:** the knowledge base is small and domain-specific; TF-IDF is local, fast, dependency-light, and easy to reason about. The `Retriever` class is the seam — swapping in sentence-transformer embeddings + Chroma changes one module, not the agent.
-- **Why RandomForest for forecasting:** lag + calendar features capture trend and weekly seasonality without a heavy time-series stack; a time-based holdout (last 56 days) gives an honest MAE the agent quotes as uncertainty.
-- **Why tools return text, not JSON blobs:** compact structured text keeps token cost low and is what the model reasons over best; the numbers are computed in pandas, never by the LLM.
-- **Failure handling:** unknown SKUs return corrective messages (the agent self-corrects), missing API keys degrade gracefully in the dashboard, and the system prompt forbids invented facts.
-
-## Extending
-
-- Swap TF-IDF → embeddings + vector DB (Chroma) for semantic retrieval
-- Add a supervisor + specialist agents (procurement, logistics) — LangGraph multi-agent
-- Persist memory to SQLite (`langgraph-checkpoint-sqlite`) for cross-session threads
-- Add tool-level evals (e.g. agent answers vs golden answers on a question set)
+- Add persistent SQLite conversation memory
+- Add embeddings and a vector database for larger document collections
+- Add agent evaluation against a set of expected answers
+- Add procurement and logistics specialist agents under a supervisor graph
+- Connect to an approved ERP or warehouse API instead of synthetic CSV data
